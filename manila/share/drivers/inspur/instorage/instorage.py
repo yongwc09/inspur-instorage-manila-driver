@@ -34,26 +34,51 @@ from manila.share.drivers.inspur.instorage.cli_helper import SSHRunner
 LOG = log.getLogger(__name__)
 
 instorage_opts = [
-    cfg.HostAddressOpt('instorage_nas_ip',
-                       help='manage ip.'),
-    cfg.StrOpt('instorage_nas_login',
-               help='manage user name.'),
-    cfg.StrOpt('instorage_nas_password',
-               help='password for manage user name.')
+    cfg.HostAddressOpt(
+        'instorage_nas_ip',
+        required=True,
+        help='IP address for the InStorage.'
+    ),
+    cfg.ProtOpt(
+        'instorage_nas_port',
+        default=22,
+        help='Port number for the InStorage.'
+    ),
+    cfg.StrOpt(
+        'instorage_nas_login',
+        required=True,
+        help='Username for the InStorage.'
+    ),
+    cfg.StrOpt(
+        'instorage_nas_password',
+        required=True,
+        secret=True,
+        help='Password for the InStorage.'
+    )
 ]
 
 CONF = cfg.CONF
 CONF.register_opts(instorage_opts)
 
+LOG = logging.getLogger(__name__)
+
 
 class InStorageShareDriver(driver.ShareDriver):
     """Inspur InStorage NAS driver. Allows for NFS and CIFS NAS.
 
-    Version history:
-        1.0.0 - Initial driver
+    .. code::none
+        Version history:
+            1.0.0 - Initial driver.
+                    Driver support:
+                        share create/delete
+                        extend size
+                        update_access
+                        protocol: NFS/CIFS
     """
-    VENDOR = "INSPUR"
-    VERSION = "1.0.0"
+
+    VENDOR = 'INSPUR'
+    VERSION = '1.0.0'
+    PROTOCOL = 'NFS_CIFS'
 
     def __init__(self, *args, **kwargs):
         super(InStorageShareDriver, self).__init__(False, *args, **kwargs)
@@ -321,7 +346,7 @@ class InStorageAssistant(object):
         return pools
 
     def get_nodes_info(self):
-        """Return dictionary containing information on system's nodes."""
+        """Return a dictionary containing information of system's nodes."""
         nodes = {}
         resp = self.ssh.lsnasportip()
         for port in resp:
@@ -409,10 +434,10 @@ class InStorageAssistant(object):
         self.ssh.rmfs(fsname)
 
     def extend_share(self, name, new_size):
-        """
+        """Extend a given share to a new size.
 
-        :param name:
-        :param new_size:
+        :param name: the name of the share.
+        :param new_size: the new size the share should be.
         :return:
         """
         # first get the original capacity
@@ -431,10 +456,11 @@ class InStorageAssistant(object):
         self.ssh.expandfs(fsname, new_size - old_size)
 
     def get_export_locations(self, name, share_proto):
-        """
+        """Get the export locations of a given share.
 
-        :param name:
-        :return:
+        :param name: the name of the share.
+        :param share_proto: the protocol of the share.
+        :return: a list of export location.
         """
 
         if share_proto == 'NFS':
